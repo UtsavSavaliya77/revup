@@ -1,0 +1,99 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id        String    @id @default(cuid())
+  name      String
+  email     String    @unique
+  createdAt DateTime  @default(now())
+  avatar    String?
+  bio       String?
+  location  String?
+  password  String
+  updatedAt DateTime  @updatedAt
+  username  String    @unique
+  cars      Car[]
+  comments  Comment[]
+  likes     Like[]
+  posts     Post[]
+  saves     Save[]
+}
+
+model Post {
+  id        String    @id @default(cuid())
+  caption   String
+  image     String?
+  userId    String
+  createdAt DateTime  @default(now())
+  category  String?
+  video     String?
+  mediaType String    @default("image")
+  mediaUrl  String?
+  tags      Json?
+  comments  Comment[]
+  likes     Like[]
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  saves     Save[]
+}
+
+model Comment {
+  id        String   @id @default(cuid())
+  text      String
+  userId    String
+  postId    String
+  createdAt DateTime @default(now())
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Like {
+  id        String   @id @default(cuid())
+  userId    String
+  postId    String
+  createdAt DateTime @default(now())
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, postId])
+}
+
+model Save {
+  id        String   @id @default(cuid())
+  userId    String
+  postId    String
+  createdAt DateTime @default(now())
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, postId])
+}
+
+model Car {
+  id        String   @id @default(cuid())
+  brand     String
+  model     String
+  year      Int
+  image     String?
+  specs     String?
+  userId    String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Build {
+  id        String   @id @default(cuid())
+  year      String
+  name      String
+  model     String
+  power     Int
+  parts     Int
+  image     String
+  createdAt DateTime @default(now())
+}
