@@ -6,29 +6,58 @@ import { useUser } from "@/context/UserContext";
 
 export default function AppHeader() {
   const { user } = useUser();
+
   const [avatar, setAvatar] = useState<string | null>(user?.avatar || null);
   const [username, setUsername] = useState<string>(user?.username || "user");
 
-  useEffect(() => {
-    const loadProfile = async () => {
-      try {
-        const res = await fetch("/api/profile", {
-          cache: "no-store",
-        });
+  const loadProfile = async () => {
+    try {
+      const res = await fetch("/api/profile", {
+        cache: "no-store",
+      });
 
-        const data = await res.json();
+      if (!res.ok) return;
 
-        if (data?.profile) {
-          setAvatar(data.profile.avatar || null);
-          setUsername(data.profile.username || "user");
-        }
-      } catch (error) {
-        console.log(error);
+      const data = await res.json();
+
+      if (data?.profile) {
+        setAvatar(data.profile.avatar || null);
+        setUsername(data.profile.username || "user");
       }
+    } catch (error) {
+      console.log(error);
+    }
+  };
+
+  useEffect(() => {
+    loadProfile();
+
+    const handleProfileUpdate = (event: Event) => {
+      const customEvent = event as CustomEvent<{
+        avatar?: string | null;
+        username?: string;
+      }>;
+    
+      if (customEvent.detail) {
+        setAvatar(customEvent.detail.avatar || null);
+        setUsername(customEvent.detail.username || "user");
+        return;
+      }
+    
+      loadProfile();
     };
 
-    loadProfile();
+    window.addEventListener("profile-updated", handleProfileUpdate);
+
+    return () => {
+      window.removeEventListener("profile-updated", handleProfileUpdate);
+    };
   }, []);
+
+  useEffect(() => {
+    setAvatar(user?.avatar || null);
+    setUsername(user?.username || "user");
+  }, [user]);
 
   const profileImage =
     avatar ||

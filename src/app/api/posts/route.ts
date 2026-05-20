@@ -1,7 +1,30 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { writeFile, mkdir } from "fs/promises";
-import path from "path";
+import cloudinary from "@/lib/cloudinary";
+
+async function uploadToCloudinary(file: File, mediaType: string) {
+  const bytes = await file.arrayBuffer();
+  const buffer = Buffer.from(bytes);
+
+  const resourceType =
+    mediaType === "video" || mediaType === "reel" ? "video" : "image";
+
+  return new Promise<any>((resolve, reject) => {
+    const uploadStream = cloudinary.uploader.upload_stream(
+      {
+        folder: "revup/posts",
+        resource_type: resourceType,
+        public_id: `post-${Date.now()}`,
+      },
+      (error, result) => {
+        if (error) reject(error);
+        else resolve(result);
+      }
+    );
+
+    uploadStream.end(buffer);
+  });
+}
 
 export async function GET() {
   try {
@@ -20,8 +43,11 @@ export async function GET() {
         },
       },
     });
+
     return NextResponse.json({ posts });
   } catch (error) {
+    console.error("FETCH_POSTS_ERROR", error);
+
     return NextResponse.json(
       { error: "Failed to fetch posts" },
       { status: 500 }
@@ -34,32 +60,66 @@ export async function POST(req: Request) {
     const formData = await req.formData();
 
     const file = formData.get("file") as File | null;
-    const caption = formData.get("caption") as string;
-    const category = formData.get("category") as string;
-    const mediaType = formData.get("mediaType") as string;
-    const tagsRaw = formData.get("tags") as string;
-    const userId = formData.get("userId") as string;
+    const caption = String(formData.get("caption") || "").trim();
+    const category = String(formData.get("category") || "").trim();
+    const mediaType = String(formData.get("mediaType") || "").trim();
+    const tagsRaw = String(formData.get("tags") || "");
+    const userId = String(formData.get("userId") || "").trim();
 
-    if (!file || !caption || !category || !userId) {
+    if (!file || !caption || !category || !userId || !mediaType) {
       return NextResponse.json(
         { error: "Missing required fields" },
         { status: 400 }
       );
     }
 
-    const bytes = await file.arrayBuffer();
-    const buffer = Buffer.from(bytes);
+    const allowedImageTypes = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
+    const allowedVideoTypes = ["video/mp4", "video/webm", "video/quicktime"];
 
-    const uploadDir = path.join(process.cwd(), "public", "uploads");
-    await mkdir(uploadDir, { recursive: true });
+    if (mediaType === "image" && !allowedImageTypes.includes(file.type)) {
+      return NextResponse.json(
+        { error: "Invalid image format. Only JPG, PNG, and WEBP are allowed." },
+        { status: 400 }
+      );
+    }
 
-    const fileName = `${Date.now()}-${file.name.replace(/\s+/g, "-")}`;
-    const filePath = path.join(uploadDir, fileName);
+    if (
+      (mediaType === "video" || mediaType === "reel") &&
+      !allowedVideoTypes.includes(file.type)
+    ) {
+      return NextResponse.json(
+        { error: "Invalid video format. Only MP4, WEBM, and MOV are allowed." },
+        { status: 400 }
+      );
+    }
 
-    await writeFile(filePath, buffer);
+    const maxSize =
+      mediaType === "video" || mediaType === "reel"
+        ? 100 * 1024 * 1024
+        : 10 * 1024 * 1024;
 
-    const fileUrl = `/uploads/${fileName}`;
-    const tags = tagsRaw ? JSON.parse(tagsRaw) : [];
+    if (file.size > maxSize) {
+      return NextResponse.json(
+        {
+          error:
+            mediaType === "video" || mediaType === "reel"
+              ? "Video size must be less than 100MB."
+              : "Image size must be less than 10MB.",
+        },
+        { status: 400 }
+      );
+    }
+
+    let tags: string[] = [];
+
+    try {
+      tags = tagsRaw ? JSON.parse(tagsRaw) : [];
+    } catch {
+      tags = [];
+    }
+
+    const uploadResult = await uploadToCloudinary(file, mediaType);
+    const fileUrl = uploadResult.secure_url;
 
     const post = await prisma.post.create({
       data: {
@@ -78,9 +138,8 @@ export async function POST(req: Request) {
       message: "Post uploaded",
       post,
     });
-    
   } catch (error) {
-    console.log("CREATE_POST_ERROR", error);
+    console.error("CREATE_POST_ERROR", error);
 
     return NextResponse.json(
       { error: "Upload failed" },

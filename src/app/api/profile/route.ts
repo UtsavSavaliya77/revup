@@ -2,8 +2,29 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { cookies } from "next/headers";
 import jwt from "jsonwebtoken";
-import { mkdir, writeFile } from "fs/promises";
-import path from "path";
+import cloudinary from "@/lib/cloudinary";
+
+async function uploadToCloudinary(file: File, userId: string) {
+  const bytes = await file.arrayBuffer();
+  const buffer = Buffer.from(bytes);
+
+  return new Promise<any>((resolve, reject) => {
+    const uploadStream = cloudinary.uploader.upload_stream(
+      {
+        folder: "revup/profile",
+        public_id: `profile-${userId}-${Date.now()}`,
+        resource_type: "image",
+        overwrite: true,
+      },
+      (error, result) => {
+        if (error) reject(error);
+        else resolve(result);
+      }
+    );
+
+    uploadStream.end(buffer);
+  });
+}
 
 export async function GET() {
   try {
@@ -14,11 +35,7 @@ export async function GET() {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const decoded: any = jwt.verify(
-      token,
-      process.env.JWT_SECRET as string
-    );
-
+    const decoded: any = jwt.verify(token, process.env.JWT_SECRET as string);
     const userId = decoded.id || decoded.userId;
 
     const profile = await prisma.user.findUnique({
@@ -78,10 +95,7 @@ export async function GET() {
         bio: (profile as any).bio || "",
         following: 0,
         followers: 0,
-        likes: videos.reduce(
-          (total, post) => total + post.likes.length,
-          0
-        ),
+        likes: videos.reduce((total, post) => total + post.likes.length, 0),
         views: 0,
         videosCount: videos.length,
       },
@@ -107,31 +121,45 @@ export async function PATCH(req: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const decoded: any = jwt.verify(
-      token,
-      process.env.JWT_SECRET as string
-    );
-
+    const decoded: any = jwt.verify(token, process.env.JWT_SECRET as string);
     const userId = decoded.id || decoded.userId;
 
     const formData = await req.formData();
 
-    const username = String(formData.get("username") || "");
-    const bio = String(formData.get("bio") || "");
+    const username = String(formData.get("username") || "").trim();
+    const bio = String(formData.get("bio") || "").trim();
 
     const avatar = formData.get("avatar") as File | null;
-   
-    const uploadDir = path.join(process.cwd(), "public", "uploads");
-    await mkdir(uploadDir, { recursive: true });
 
     let avatarUrl: string | undefined;
 
     if (avatar && avatar.size > 0) {
-      const bytes = await avatar.arrayBuffer();
-      const buffer = Buffer.from(bytes);
-      const fileName = `${Date.now()}-${avatar.name}`;
-      await writeFile(path.join(uploadDir, fileName), buffer);
-      avatarUrl = `/uploads/${fileName}`;
+      const allowedTypes = [
+        "image/jpeg",
+        "image/jpg",
+        "image/png",
+        "image/webp",
+      ];
+
+      if (!allowedTypes.includes(avatar.type)) {
+        return NextResponse.json(
+          {
+            error:
+              "Invalid image format. Only JPG, JPEG, PNG, and WEBP are allowed.",
+          },
+          { status: 400 }
+        );
+      }
+
+      if (avatar.size > 5 * 1024 * 1024) {
+        return NextResponse.json(
+          { error: "Image size must be less than 5MB." },
+          { status: 400 }
+        );
+      }
+
+      const uploadResult = await uploadToCloudinary(avatar, userId);
+      avatarUrl = uploadResult.secure_url;
     }
 
     const updatedUser = await prisma.user.update({

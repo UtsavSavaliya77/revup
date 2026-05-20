@@ -211,7 +211,7 @@ export default function ProfilePage() {
       if (!video) return;
 
       if (playingVideoId === id) {
-        video.play().catch(() => {});
+        video.play().catch(() => { });
       } else {
         video.pause();
       }
@@ -254,7 +254,16 @@ export default function ProfilePage() {
         ...(prev || {}),
         ...data.profile,
       }));
-
+      
+      window.dispatchEvent(
+        new CustomEvent("profile-updated", {
+          detail: {
+            avatar: data.profile.avatar,
+            username: data.profile.username,
+          },
+        })
+      );
+      
       setIsEditOpen(false);
       showCustomAlert("Profile updated successfully.", "Success", "success");
     } catch (error) {
@@ -358,11 +367,10 @@ export default function ProfilePage() {
               setActiveTab("videos");
               setPlayingVideoId(null);
             }}
-            className={`border-b-2 py-5 transition ${
-              activeTab === "videos"
+            className={`border-b-2 py-5 transition ${activeTab === "videos"
                 ? "border-orange-600 text-orange-500"
                 : "border-transparent hover:text-white"
-            }`}
+              }`}
           >
             Videos
           </button>
@@ -372,11 +380,10 @@ export default function ProfilePage() {
               setActiveTab("saved");
               setPlayingVideoId(null);
             }}
-            className={`border-b-2 py-5 transition ${
-              activeTab === "saved"
+            className={`border-b-2 py-5 transition ${activeTab === "saved"
                 ? "border-orange-600 text-orange-500"
                 : "border-transparent hover:text-white"
-            }`}
+              }`}
           >
             Saved
           </button>
@@ -486,19 +493,59 @@ export default function ProfilePage() {
                   <img
                     src={editAvatarPreview}
                     alt="Avatar preview"
+                    onError={() => {
+                      showCustomAlert(
+                        "This image cannot be previewed."
+                      );
+
+                      setEditAvatarPreview("");
+                      setEditAvatarFile(null);
+                    }}
                     className="mb-3 h-20 w-20 rounded-full object-cover"
                   />
                 )}
 
                 <input
                   type="file"
-                  accept="image/*"
+                  accept="image/jpeg,image/png,image/webp"
                   onChange={(e) => {
                     const file = e.target.files?.[0];
+
                     if (!file) return;
 
+                    const allowedTypes = [
+                      "image/jpeg",
+                      "image/jpg",
+                      "image/pjpeg",
+                      "image/png",
+                      "image/webp",
+                    ];
+
+                    if (!allowedTypes.includes(file.type)) {
+                      showCustomAlert(
+                        "Only JPG, JPEG, PNG, and WEBP images are allowed."
+                      );
+                      return;
+                    }
+
+                    if (file.size > 5 * 1024 * 1024) {
+                      showCustomAlert(
+                        "Image size must be less than 5MB."
+                      );
+                      return;
+                    }
+
+                    if (
+                      editAvatarPreview &&
+                      editAvatarPreview.startsWith("blob:")
+                    ) {
+                      URL.revokeObjectURL(editAvatarPreview);
+                    }
+
+                    const previewUrl = URL.createObjectURL(file);
+
                     setEditAvatarFile(file);
-                    setEditAvatarPreview(URL.createObjectURL(file));
+                    setEditAvatarPreview(previewUrl);
                   }}
                   className="w-full rounded-lg border border-neutral-800 bg-black px-4 py-3 text-white"
                 />
@@ -528,18 +575,16 @@ export default function ProfilePage() {
       {customAlert.open && (
         <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/80 px-4 backdrop-blur-sm">
           <div
-            className={`w-full max-w-sm rounded-2xl border p-6 text-center shadow-2xl ${
-              isSuccessAlert
+            className={`w-full max-w-sm rounded-2xl border p-6 text-center shadow-2xl ${isSuccessAlert
                 ? "border-green-500/30 bg-[#101010] shadow-green-500/20"
                 : "border-red-500/30 bg-[#101010] shadow-red-500/20"
-            }`}
+              }`}
           >
             <div
-              className={`mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full ${
-                isSuccessAlert
+              className={`mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full ${isSuccessAlert
                   ? "bg-green-500/15 text-green-500"
                   : "bg-red-500/15 text-red-500"
-              }`}
+                }`}
             >
               {isSuccessAlert ? (
                 <CheckCircle size={30} />
@@ -558,11 +603,10 @@ export default function ProfilePage() {
 
             <button
               onClick={closeCustomAlert}
-              className={`mt-6 w-full rounded-lg px-5 py-3 text-sm font-black uppercase text-white transition ${
-                isSuccessAlert
+              className={`mt-6 w-full rounded-lg px-5 py-3 text-sm font-black uppercase text-white transition ${isSuccessAlert
                   ? "bg-green-600 hover:bg-green-500"
                   : "bg-orange-600 hover:bg-orange-500"
-              }`}
+                }`}
             >
               OK
             </button>
@@ -585,17 +629,15 @@ function Stat({
   return (
     <div>
       <div
-        className={`text-2xl font-black ${
-          orange ? "text-orange-500" : "text-white"
-        }`}
+        className={`text-2xl font-black ${orange ? "text-orange-500" : "text-white"
+          }`}
       >
         {safeNumber(number).toLocaleString()}
       </div>
 
       <div
-        className={`mt-1 text-xs font-bold uppercase ${
-          orange ? "text-orange-500" : "text-neutral-500"
-        }`}
+        className={`mt-1 text-xs font-bold uppercase ${orange ? "text-orange-500" : "text-neutral-500"
+          }`}
       >
         {label}
       </div>
