@@ -61,6 +61,23 @@ const categories = [
   "MODS",
 ];
 
+function getPostMediaSrc(post: Post) {
+  return post.mediaUrl || post.video || post.image || "";
+}
+
+function isVideoPost(post: Post) {
+  const src = getPostMediaSrc(post).toLowerCase();
+
+  return (
+    post.mediaType === "video" ||
+    post.mediaType === "reel" ||
+    src.includes("/video/upload/") ||
+    src.endsWith(".mp4") ||
+    src.endsWith(".webm") ||
+    src.endsWith(".mov")
+  );
+}
+
 export default function FeedPage() {
   const [posts, setPosts] = useState<Post[]>([]);
   const [storyUsers, setStoryUsers] = useState<StoryUser[]>([]);
@@ -335,14 +352,16 @@ export default function FeedPage() {
               className="relative bg-zinc-950 rounded-2xl overflow-hidden border border-zinc-900"
             >
               <div className="relative">
-                {post.mediaType === "reel" || post.mediaType === "video" ? (
+                {/* {post.mediaType === "reel" || post.mediaType === "video" ? ( */}
+                {isVideoPost(post) ? (
                   <div
                     onClick={() => toggleVideoPlay(post.id)}
                     className="relative cursor-pointer"
                   >
                     <video
                       id={`video-${post.id}`}
-                      src={post.video || post.mediaUrl || post.image}
+                      // src={post.video || post.mediaUrl || post.image}
+                      src={getPostMediaSrc(post)}
                       playsInline
                       loop
                       className="w-full max-h-[85vh] object-cover bg-black"
@@ -358,7 +377,8 @@ export default function FeedPage() {
                   </div>
                 ) : (
                   <img
-                    src={post.image || post.mediaUrl}
+                    // src={post.image || post.mediaUrl}
+                    src={getPostMediaSrc(post)}
                     alt={post.caption}
                     className="w-full max-h-[85vh] object-cover"
                   />
