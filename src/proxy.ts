@@ -8,9 +8,13 @@ const protectedRoutes = [
   "/upload",
 ];
 
-export function middleware(req: NextRequest) {
+export function proxy(req: NextRequest) {
   const token = req.cookies.get("token")?.value;
   const path = req.nextUrl.pathname;
+
+  if (path === "/") {
+    return NextResponse.redirect(new URL(token ? "/feed" : "/login", req.url));
+  }
 
   const isProtectedRoute = protectedRoutes.some((route) =>
     path.startsWith(route)
@@ -29,6 +33,7 @@ export function middleware(req: NextRequest) {
 
 export const config = {
   matcher: [
+    "/",
     "/feed/:path*",
     "/profile/:path*",
     "/garage/:path*",
