@@ -118,106 +118,99 @@ export default function UploadPage() {
     );
   };
 
+  const uploadToCloudinary = async () => {
+    if (!file) throw new Error("No file selected");
+  
+    const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME;
+    const uploadPreset = process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET;
+
+    if (!cloudName || !uploadPreset) {
+      throw new Error(
+        "Cloudinary env variables missing"
+      );
+    }
+  
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("upload_preset", uploadPreset || "");
+    formData.append("folder", "revup/posts");
+  
+    const resourceType =
+      mediaType === "video" || mediaType === "reel" ? "video" : "image";
+  
+    const res = await fetch(
+      `https://api.cloudinary.com/v1_1/${cloudName}/${resourceType}/upload`,
+      {
+        method: "POST",
+        body: formData,
+      }
+    );
+  
+    const data = await res.json();
+  
+    if (!res.ok) {
+      throw new Error(data.error?.message || "Cloudinary upload failed");
+    }
+  
+    return data.secure_url;
+  };
+  
   const handlePublish = async () => {
     if (!file) {
-      showAlert(
-        "Error",
-        "Please upload image or video",
-        "error"
-      );
+      showAlert("Error", "Please upload image or video", "error");
       return;
     }
-
+  
     if (!title.trim()) {
-      showAlert(
-        "Error",
-        "Please enter title",
-        "error"
-      );
+      showAlert("Error", "Please enter title", "error");
       return;
     }
-
+  
     if (!category) {
-      showAlert(
-        "Error",
-        "Please select category",
-        "error"
-      );
+      showAlert("Error", "Please select category", "error");
       return;
     }
-
+  
     try {
       setLoading(true);
-
-      const formData = new FormData();
-
-      formData.append("file", file);
-
-      formData.append("caption", title);
-
-      formData.append(
-        "description",
-        description
-      );
-
-      formData.append(
-        "category",
-        category
-      );
-
-      formData.append(
-        "mediaType",
-        mediaType
-      );
-
-      formData.append(
-        "tags",
-        JSON.stringify(tags)
-      );
-
-      formData.append(
-        "userId",
-        user?.id || ""
-      );
-
-      const response = await fetch(
-        "/api/posts",
-        {
-          method: "POST",
-          body: formData,
-        }
-      );
-
+  
+      const uploadedUrl = await uploadToCloudinary();
+  
+      const response = await fetch("/api/posts/create", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          caption: title,
+          image: uploadedUrl,
+          category,
+          mediaType,
+          tags,
+        }),
+      });
+  
       const data = await response.json();
-
+  
       if (!response.ok) {
-        showAlert(
-          "Error",
-          data.error || "Upload failed",
-          "error"
-        );
-
+        showAlert("Error", data.error || data.message || "Upload failed", "error");
         return;
       }
-
-      showAlert(
-        "Success",
-        "Post uploaded successfully!",
-        "success"
-      );
-
+  
+      showAlert("Success", "Post uploaded successfully!", "success");
+  
       setFile(null);
       setPreview("");
       setTitle("");
       setDescription("");
       setCategory("");
       setTags([]);
-    } catch (error) {
+    } catch (error: any) {
       console.log(error);
-
+      // showAlert("Error", error.message || "Something went wrong", "error");
       showAlert(
         "Error",
-        "Something went wrong",
+        error instanceof Error ? error.message : "Something went wrong",
         "error"
       );
     } finally {
