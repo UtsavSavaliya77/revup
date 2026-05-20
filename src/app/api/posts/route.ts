@@ -2,6 +2,9 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import cloudinary from "@/lib/cloudinary";
 
+export const runtime = "nodejs";
+export const maxDuration = 60;
+
 async function uploadToCloudinary(file: File, mediaType: string) {
   const bytes = await file.arrayBuffer();
   const buffer = Buffer.from(bytes);
@@ -74,7 +77,15 @@ export async function POST(req: Request) {
     }
 
     const allowedImageTypes = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
-    const allowedVideoTypes = ["video/mp4", "video/webm", "video/quicktime"];
+    // const allowedVideoTypes = ["video/mp4", "video/webm", "video/quicktime"];
+
+    const allowedVideoTypes = [
+      "video/mp4",
+      "video/webm",
+      "video/quicktime",
+      "video/x-m4v",
+      "video/mov",
+    ];
 
     if (mediaType === "image" && !allowedImageTypes.includes(file.type)) {
       return NextResponse.json(
@@ -95,15 +106,15 @@ export async function POST(req: Request) {
 
     const maxSize =
       mediaType === "video" || mediaType === "reel"
-        ? 100 * 1024 * 1024
-        : 10 * 1024 * 1024;
+        ? 50 * 1024 * 1024
+        : 50 * 1024 * 1024;
 
     if (file.size > maxSize) {
       return NextResponse.json(
         {
           error:
             mediaType === "video" || mediaType === "reel"
-              ? "Video size must be less than 100MB."
+              ? "Video size must be less than 50MB."
               : "Image size must be less than 10MB.",
         },
         { status: 400 }
