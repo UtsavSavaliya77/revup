@@ -101,7 +101,8 @@ export default function ProfilePage() {
   const [saved, setSaved] = useState<ProfilePost[]>([]);
   const [activeTab, setActiveTab] = useState<"videos" | "saved">("videos");
   const [loading, setLoading] = useState(true);
-  const [playingVideoId, setPlayingVideoId] = useState<string | null>(null);
+  const [reelsOpen, setReelsOpen] = useState(false);
+  const [activeReelIndex, setActiveReelIndex] = useState(0);
 
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [editUsername, setEditUsername] = useState("");
@@ -109,6 +110,14 @@ export default function ProfilePage() {
   const [editAvatarFile, setEditAvatarFile] = useState<File | null>(null);
   const [editAvatarPreview, setEditAvatarPreview] = useState("");
   const [savingProfile, setSavingProfile] = useState(false);
+
+  useEffect(() => {
+    document.body.style.overflow = reelsOpen ? "hidden" : "auto";
+
+    return () => {
+      document.body.style.overflow = "auto";
+    };
+  }, [reelsOpen]);
 
   const [customAlert, setCustomAlert] = useState<{
     open: boolean;
@@ -206,18 +215,6 @@ export default function ProfilePage() {
     }
   }
 
-  useEffect(() => {
-    Object.entries(videoRefs.current).forEach(([id, video]) => {
-      if (!video) return;
-
-      if (playingVideoId === id) {
-        video.play().catch(() => { });
-      } else {
-        video.pause();
-      }
-    });
-  }, [playingVideoId]);
-
   const openEditProfile = () => {
     setEditUsername(profile?.username || "");
     setEditBio(profile?.bio || "");
@@ -254,7 +251,7 @@ export default function ProfilePage() {
         ...(prev || {}),
         ...data.profile,
       }));
-      
+
       window.dispatchEvent(
         new CustomEvent("profile-updated", {
           detail: {
@@ -263,7 +260,7 @@ export default function ProfilePage() {
           },
         })
       );
-      
+
       setIsEditOpen(false);
       showCustomAlert("Profile updated successfully.", "Success", "success");
     } catch (error) {
@@ -292,6 +289,11 @@ export default function ProfilePage() {
 
   const currentPosts = activeTab === "videos" ? posts : saved;
   const isSuccessAlert = customAlert.type === "success";
+
+  const reelPosts = currentPosts.filter((post) => {
+    const mediaSrc = getMediaSrc(post);
+    return mediaSrc && checkIsVideo(post, mediaSrc);
+  });
 
   return (
     <main className="min-h-screen bg-[#050505] text-white">
@@ -365,11 +367,10 @@ export default function ProfilePage() {
           <button
             onClick={() => {
               setActiveTab("videos");
-              setPlayingVideoId(null);
             }}
             className={`border-b-2 py-5 transition ${activeTab === "videos"
-                ? "border-orange-600 text-orange-500"
-                : "border-transparent hover:text-white"
+              ? "border-orange-600 text-orange-500"
+              : "border-transparent hover:text-white"
               }`}
           >
             Videos
@@ -378,11 +379,10 @@ export default function ProfilePage() {
           <button
             onClick={() => {
               setActiveTab("saved");
-              setPlayingVideoId(null);
             }}
             className={`border-b-2 py-5 transition ${activeTab === "saved"
-                ? "border-orange-600 text-orange-500"
-                : "border-transparent hover:text-white"
+              ? "border-orange-600 text-orange-500"
+              : "border-transparent hover:text-white"
               }`}
           >
             Saved
@@ -399,8 +399,7 @@ export default function ProfilePage() {
             return (
               <article
                 key={post.id}
-                className="group relative aspect-[4/3] overflow-hidden bg-neutral-900"
-              >
+                className="group relative aspect-[4/3] overflow-hidden bg-neutral-900"              >
                 {mediaSrc ? (
                   isVideo ? (
                     <div className="relative h-full w-full">
@@ -417,18 +416,17 @@ export default function ProfilePage() {
 
                       <button
                         type="button"
-                        onClick={() =>
-                          setPlayingVideoId((current) =>
-                            current === post.id ? null : post.id
-                          )
-                        }
+                        onClick={() => {
+                          const reelIndex = reelPosts.findIndex((item) => item.id === post.id);
+                          setActiveReelIndex(reelIndex >= 0 ? reelIndex : 0);
+                          window.dispatchEvent(new Event("reels-open"));
+                          setReelsOpen(true);
+                        }}
                         className="absolute inset-0 z-20 flex items-center justify-center"
                       >
-                        {playingVideoId !== post.id && (
-                          <span className="flex h-14 w-14 items-center justify-center rounded-full bg-black/70 text-white ring-1 ring-white/20 backdrop-blur-sm transition">
-                            <Play size={26} fill="white" />
-                          </span>
-                        )}
+                        <span className="flex h-14 w-14 items-center justify-center rounded-full bg-black/70 text-white ring-1 ring-white/20 backdrop-blur-sm transition group-hover:scale-110">
+                          <Play size={26} fill="white" />
+                        </span>
                       </button>
                     </div>
                   ) : (
@@ -572,18 +570,29 @@ export default function ProfilePage() {
         </div>
       )}
 
+      {reelsOpen && (
+        <ReelsModal
+          posts={reelPosts}
+          initialIndex={activeReelIndex}
+          onClose={() => {
+  window.dispatchEvent(new Event("reels-close"));
+  setReelsOpen(false);
+}}
+        />
+      )}
+
       {customAlert.open && (
         <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/80 px-4 backdrop-blur-sm">
           <div
             className={`w-full max-w-sm rounded-2xl border p-6 text-center shadow-2xl ${isSuccessAlert
-                ? "border-green-500/30 bg-[#101010] shadow-green-500/20"
-                : "border-red-500/30 bg-[#101010] shadow-red-500/20"
+              ? "border-green-500/30 bg-[#101010] shadow-green-500/20"
+              : "border-red-500/30 bg-[#101010] shadow-red-500/20"
               }`}
           >
             <div
               className={`mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full ${isSuccessAlert
-                  ? "bg-green-500/15 text-green-500"
-                  : "bg-red-500/15 text-red-500"
+                ? "bg-green-500/15 text-green-500"
+                : "bg-red-500/15 text-red-500"
                 }`}
             >
               {isSuccessAlert ? (
@@ -604,8 +613,8 @@ export default function ProfilePage() {
             <button
               onClick={closeCustomAlert}
               className={`mt-6 w-full rounded-lg px-5 py-3 text-sm font-black uppercase text-white transition ${isSuccessAlert
-                  ? "bg-green-600 hover:bg-green-500"
-                  : "bg-orange-600 hover:bg-orange-500"
+                ? "bg-green-600 hover:bg-green-500"
+                : "bg-orange-600 hover:bg-orange-500"
                 }`}
             >
               OK
@@ -658,6 +667,140 @@ function Metric({
 
       <div className="mt-2 font-black">
         {safeNumber(value).toLocaleString()}
+      </div>
+    </div>
+  );
+}
+
+
+function ReelsModal({
+  posts,
+  initialIndex,
+  onClose,
+}: {
+  posts: ProfilePost[];
+  initialIndex: number;
+  onClose: () => void;
+}) {
+  const [index, setIndex] = useState(initialIndex);
+  const indexRef = useRef(initialIndex);
+  const lockRef = useRef(false);
+  const touchStartY = useRef(0);
+
+  const goToReel = (nextIndex: number) => {
+    if (lockRef.current) return;
+    if (nextIndex < 0 || nextIndex >= posts.length) return;
+
+    lockRef.current = true;
+    indexRef.current = nextIndex;
+    setIndex(nextIndex);
+
+    setTimeout(() => {
+      lockRef.current = false;
+    }, 900);
+  };
+
+  const goNext = () => {
+    goToReel(indexRef.current + 1);
+  };
+
+  const goPrev = () => {
+    goToReel(indexRef.current - 1);
+  };
+
+  const handleWheel = (e: React.WheelEvent<HTMLDivElement>) => {
+    e.preventDefault();
+
+    if (Math.abs(e.deltaY) < 40) return;
+
+    if (e.deltaY > 0) {
+      goNext();
+    } else {
+      goPrev();
+    }
+  };
+
+  const handleTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
+    touchStartY.current = e.touches[0].clientY;
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent<HTMLDivElement>) => {
+    const diff = touchStartY.current - e.changedTouches[0].clientY;
+
+    if (Math.abs(diff) < 80) return;
+
+    if (diff > 0) {
+      goNext();
+    } else {
+      goPrev();
+    }
+  };
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "ArrowDown") {
+        e.preventDefault();
+        goNext();
+      }
+
+      if (e.key === "ArrowUp") {
+        e.preventDefault();
+        goPrev();
+      }
+
+      if (e.key === "Escape") {
+        onClose();
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, []);
+
+  const activePost = posts[index];
+  const mediaSrc = activePost ? getMediaSrc(activePost) : null;
+
+  return (
+    <div
+      className="fixed inset-0 z-[150] bg-black overflow-hidden"
+      onWheel={handleWheel}
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handleTouchEnd}
+      tabIndex={0}
+    >
+      <button
+        type="button"
+        onClick={onClose}
+        className="fixed right-5 top-5 z-50 flex h-10 w-10 items-center justify-center rounded-full bg-black/60 text-2xl text-white"
+      >
+        ×
+      </button>
+
+      <div className="flex h-screen w-full items-center justify-center overflow-hidden bg-black">
+        <div className="relative h-full w-full max-w-md bg-black">
+          {mediaSrc && (
+            <video
+              key={activePost.id}
+              src={mediaSrc}
+              controls
+              autoPlay
+              loop
+              playsInline
+              className="h-full w-full object-cover"
+            />
+          )}
+
+          {(activePost?.title || activePost?.caption) && (
+            <div className="absolute bottom-6 left-4 right-4 z-20 rounded-xl bg-black/40 p-4 text-white backdrop-blur-sm">
+              <h3 className="text-sm font-black uppercase">
+                {activePost.title || activePost.caption}
+              </h3>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

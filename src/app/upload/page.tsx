@@ -5,7 +5,6 @@ import {
   UploadCloud,
   ChevronDown,
 } from "lucide-react";
-import { useUser } from "@/context/UserContext";
 
 const categories = [
   "JDM",
@@ -28,9 +27,6 @@ const quickTags = [
 
 export default function UploadPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
-
-  const { user } = useUser();
-
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState("");
 
@@ -88,10 +84,23 @@ export default function UploadPage() {
       return;
     }
 
-    if (selectedFile.size > 50 * 1024 * 1024) {
+    // Different limits
+    const IMAGE_MAX_SIZE = 10 * 1024 * 1024; // 10MB
+    const VIDEO_MAX_SIZE = 50 * 1024 * 1024; // 50MB
+
+    if (isImage && selectedFile.size > IMAGE_MAX_SIZE) {
       showAlert(
         "Error",
-        "File must be under 50MB",
+        "Image must be under 10MB",
+        "error"
+      );
+      return;
+    }
+
+    if (isVideo && selectedFile.size > VIDEO_MAX_SIZE) {
+      showAlert(
+        "Error",
+        "Video must be under 50MB",
         "error"
       );
       return;
@@ -112,32 +121,32 @@ export default function UploadPage() {
     setTags((prev) =>
       prev.includes(tag)
         ? prev.filter(
-            (item) => item !== tag
-          )
+          (item) => item !== tag
+        )
         : [...prev, tag]
     );
   };
 
   const uploadToCloudinary = async () => {
     if (!file) throw new Error("No file selected");
-  
+
     const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME;
     const uploadPreset = process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET;
 
-    if (!cloudName || !uploadPreset) {
-      throw new Error(
-        "Cloudinary env variables missing"
-      );
-    }
-  
+    // if (!cloudName || !uploadPreset) {
+    //   throw new Error(
+    //     "Cloudinary env variables missing"
+    //   );
+    // }
+
     const formData = new FormData();
     formData.append("file", file);
     formData.append("upload_preset", uploadPreset || "");
     formData.append("folder", "revup/posts");
-  
+
     const resourceType =
       mediaType === "video" || mediaType === "reel" ? "video" : "image";
-  
+
     const res = await fetch(
       `https://api.cloudinary.com/v1_1/${cloudName}/${resourceType}/upload`,
       {
@@ -145,37 +154,37 @@ export default function UploadPage() {
         body: formData,
       }
     );
-  
+
     const data = await res.json();
-  
+
     if (!res.ok) {
       throw new Error(data.error?.message || "Cloudinary upload failed");
     }
-  
+
     return data.secure_url;
   };
-  
+
   const handlePublish = async () => {
     if (!file) {
       showAlert("Error", "Please upload image or video", "error");
       return;
     }
-  
+
     if (!title.trim()) {
       showAlert("Error", "Please enter title", "error");
       return;
     }
-  
+
     if (!category) {
       showAlert("Error", "Please select category", "error");
       return;
     }
-  
+
     try {
       setLoading(true);
-  
+
       const uploadedUrl = await uploadToCloudinary();
-  
+
       const response = await fetch("/api/posts/create", {
         method: "POST",
         headers: {
@@ -189,16 +198,16 @@ export default function UploadPage() {
           tags,
         }),
       });
-  
+
       const data = await response.json();
-  
+
       if (!response.ok) {
         showAlert("Error", data.error || data.message || "Upload failed", "error");
         return;
       }
-  
+
       showAlert("Success", "Post uploaded successfully!", "success");
-  
+
       setFile(null);
       setPreview("");
       setTitle("");
@@ -245,7 +254,7 @@ export default function UploadPage() {
 
             {preview ? (
               mediaType === "video" ||
-              mediaType === "reel" ? (
+                mediaType === "reel" ? (
                 <video
                   src={preview}
                   controls
@@ -271,8 +280,7 @@ export default function UploadPage() {
                 </p>
 
                 <p className="text-zinc-600 text-xs md:text-sm mt-2">
-                  Image, MP4, WebM up to
-                  50MB
+                  Images up to 10MB • Videos up to 50MB
                 </p>
               </>
             )}
@@ -360,11 +368,10 @@ export default function UploadPage() {
                   onClick={() =>
                     toggleTag(tag)
                   }
-                  className={`px-3 h-7 md:px-5 md:h-11 rounded-full border text-xs md:text-sm ${
-                    tags.includes(tag)
-                      ? "bg-orange-600 border-orange-600 text-white"
-                      : "border-zinc-700 text-zinc-400"
-                  }`}
+                  className={`px-3 h-7 md:px-5 md:h-11 rounded-full border text-xs md:text-sm ${tags.includes(tag)
+                    ? "bg-orange-600 border-orange-600 text-white"
+                    : "border-zinc-700 text-zinc-400"
+                    }`}
                 >
                   {tag}
                 </button>
@@ -390,11 +397,10 @@ export default function UploadPage() {
           <div className="w-full max-w-sm animate-[popup_.25s_ease] rounded-2xl border border-zinc-700 bg-zinc-900 p-6 shadow-2xl">
             <div className="flex flex-col items-center text-center">
               <div
-                className={`flex h-16 w-16 items-center justify-center rounded-full text-3xl font-bold text-white ${
-                  alertType === "success"
-                    ? "bg-green-600"
-                    : "bg-red-600"
-                }`}
+                className={`flex h-16 w-16 items-center justify-center rounded-full text-3xl font-bold text-white ${alertType === "success"
+                  ? "bg-green-600"
+                  : "bg-red-600"
+                  }`}
               >
                 {alertType === "success"
                   ? "✓"
@@ -411,11 +417,10 @@ export default function UploadPage() {
 
               <button
                 onClick={closeAlert}
-                className={`mt-6 w-full rounded-xl py-3 font-semibold text-white transition ${
-                  alertType === "success"
-                    ? "bg-green-600 hover:bg-green-700"
-                    : "bg-red-600 hover:bg-red-700"
-                }`}
+                className={`mt-6 w-full rounded-xl py-3 font-semibold text-white transition ${alertType === "success"
+                  ? "bg-green-600 hover:bg-green-700"
+                  : "bg-red-600 hover:bg-red-700"
+                  }`}
               >
                 OK
               </button>

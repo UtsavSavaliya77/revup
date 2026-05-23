@@ -104,18 +104,19 @@ export async function POST(req: Request) {
       );
     }
 
-    const maxSize =
-      mediaType === "video" || mediaType === "reel"
-        ? 50 * 1024 * 1024
-        : 50 * 1024 * 1024;
-
+    const IMAGE_MAX_SIZE = 10 * 1024 * 1024; // 10MB
+    const VIDEO_MAX_SIZE = 50 * 1024 * 1024; // 50MB
+    
+    const isVideoMedia = mediaType === "video" || mediaType === "reel";
+    
+    const maxSize = isVideoMedia ? VIDEO_MAX_SIZE : IMAGE_MAX_SIZE;
+    
     if (file.size > maxSize) {
       return NextResponse.json(
         {
-          error:
-            mediaType === "video" || mediaType === "reel"
-              ? "Video size must be less than 50MB."
-              : "Image size must be less than 10MB.",
+          error: isVideoMedia
+            ? "Video size must be less than 50MB."
+            : "Image size must be less than 10MB.",
         },
         { status: 400 }
       );
