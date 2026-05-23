@@ -36,7 +36,7 @@ export default function RootLayout({
     
       const playAudio = () => {
         if (!document.hidden && !isBlockedPage) {
-          audio.volume = 0.1;
+          audio.volume = 0.3;
           audio.play().catch(() => {});
         }
       };
