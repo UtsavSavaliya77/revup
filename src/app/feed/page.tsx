@@ -65,9 +65,10 @@ function getPostMediaSrc(post: Post) {
   return post.mediaUrl || post.video || post.image || "";
 }
 
+
 function isVideoPost(post: Post) {
   const src = getPostMediaSrc(post).toLowerCase();
-
+  
   return (
     post.mediaType === "video" ||
     post.mediaType === "reel" ||
@@ -352,7 +353,6 @@ export default function FeedPage() {
               className="relative bg-zinc-950 rounded-2xl overflow-hidden border border-zinc-900"
             >
               <div className="relative">
-                {/* {post.mediaType === "reel" || post.mediaType === "video" ? ( */}
                 {isVideoPost(post) ? (
                   <div
                     onClick={() => toggleVideoPlay(post.id)}

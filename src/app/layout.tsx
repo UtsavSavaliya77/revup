@@ -6,7 +6,7 @@ import AppHeader from "@/component/AppHeader";
 import BottomNav from "@/component/BottomNav";
 import { usePathname } from "next/navigation";
 import { useRef, useEffect } from "react";
-import PageMusic from "@/component/PageMusic";
+// import PageMusic from "@/component/PageMusic";
 
 export default function RootLayout({
   children,

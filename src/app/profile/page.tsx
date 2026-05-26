@@ -575,9 +575,9 @@ export default function ProfilePage() {
           posts={reelPosts}
           initialIndex={activeReelIndex}
           onClose={() => {
-  window.dispatchEvent(new Event("reels-close"));
-  setReelsOpen(false);
-}}
+            window.dispatchEvent(new Event("reels-close"));
+            setReelsOpen(false);
+          }}
         />
       )}
 

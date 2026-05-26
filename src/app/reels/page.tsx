@@ -61,6 +61,7 @@ function isVideoReel(reel: Reel) {
 }
 
 export default function ReelsPage() {
+  console.log("Fetch reel page");
   const [reels, setReels] = useState<Reel[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentUser, setCurrentUser] = useState<any>(null);

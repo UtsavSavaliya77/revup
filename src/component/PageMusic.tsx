@@ -66,11 +66,15 @@ export default function PageMusic() {
     };
 
     document.addEventListener("visibilitychange", handleVisibilityChange);
+    window.addEventListener("blur", pauseAudio);
+    window.addEventListener("focus", playAudio);
     window.addEventListener("reels-open", handleReelsOpen);
     window.addEventListener("reels-close", handleReelsClose);
 
     return () => {
       document.removeEventListener("visibilitychange", handleVisibilityChange);
+      window.removeEventListener("blur", pauseAudio);
+      window.removeEventListener("focus", playAudio);
       window.removeEventListener("reels-open", handleReelsOpen);
       window.removeEventListener("reels-close", handleReelsClose);
     };
